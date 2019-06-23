@@ -11,6 +11,9 @@ GemstoneLayer::GemstoneLayer()
 	,m_height(0)
 	,m_matrix(nullptr)
 	,m_bRunningAction(true)
+	,m_bTouchEnabled(false)
+	,m_pSrcGem(nullptr)
+	,m_pDestGem(nullptr)
 {
 }
 
@@ -59,6 +62,12 @@ bool GemstoneLayer::init(const Rect& rect)
 	Director::getInstance()->getSpriteFrameCache()->addSpriteFramesWithFile("gemres.xml");
 	//初始化矩阵
 	this->initMatrix();
+	//添加触碰事件
+	auto listener = EventListenerTouchOneByOne::create();
+	listener->onTouchBegan = SDL_CALLBACK_2(GemstoneLayer::onTouchBegan, this);
+	listener->onTouchMoved = SDL_CALLBACK_2(GemstoneLayer::onTouchMoved, this);
+
+	_eventDispatcher->addEventListener(listener, this);
 
 	this->scheduleUpdate();
 
@@ -99,6 +108,7 @@ void GemstoneLayer::update(float)
 			}
 		}
 	}
+	m_bTouchEnabled = !m_bRunningAction;
 	//当没有实体执行Action时，检测和删除满足消除条件的实体
 	if (!m_bRunningAction) 
 	{
@@ -310,4 +320,164 @@ void GemstoneLayer::fillVacancies()
 		}
 	}
 	free(colEmptyInfo);
+}
+
+Gemstone* GemstoneLayer::getGemOFPoint(const Point& pos)
+{
+	Gemstone* stone = NULL;
+	Rect rect;
+	for (unsigned i = 0; i < m_height * m_width; i++)
+	{
+		stone = m_matrix[i];
+		if (stone != nullptr) 
+		{
+			rect.origin.x = stone->getPositionX() - stone->getContentSize().width / 2;
+			rect.origin.y = stone->getPositionY() - stone->getContentSize().height / 2;
+			rect.size = stone->getContentSize();
+			if (rect.containsPoint(pos))
+			{
+				return stone;
+			}
+		}
+	}
+	return nullptr;
+}
+
+bool GemstoneLayer::onTouchBegan(Touch* touch, SDL_Event* event)
+{
+	m_pSrcGem = nullptr;
+	m_pDestGem = nullptr;
+
+	if (m_bTouchEnabled)
+	{
+		auto location = touch->getLocation();
+		m_pSrcGem = this->getGemOFPoint(location);
+	}
+	return m_bTouchEnabled;
+}
+
+void GemstoneLayer::onTouchMoved(Touch* touch, SDL_Event* event)
+{
+	//src == nullptr || 不可点击
+	if (m_pSrcGem == nullptr || !m_bTouchEnabled || m_bRunningAction)
+	{
+		return;
+	}
+	int row = m_pSrcGem->getRow();
+	int col = m_pSrcGem->getCol();
+
+	auto location = touch->getLocation();
+	auto delta = location - touch->getStartLocation();
+	//根据哪个滑动的大来确定位置
+	//x轴
+	if (fabs(delta.x) <= Gemstone::getWidth() / 2 && fabs(delta.y) <= Gemstone::getWidth() / 2)
+		return;
+
+	if(fabs(delta.x) > fabs(delta.y))
+	{
+		if (delta.x > 0.f)
+			col++;
+		else
+			col--;
+		//在范围之内
+		if (col >= 0 && col < m_width)
+		{
+			m_pDestGem = m_matrix[row * m_width + col];
+			this->swapGems();
+		}
+	}
+	//y轴
+	else
+	{
+		if (delta.y > 0)
+			row++;
+		else
+			row--;
+		if (row >= 0 && row < m_height)
+		{
+			m_pDestGem = m_matrix[row * m_width + col];
+			this->swapGems();
+		}
+	}
+}
+
+void GemstoneLayer::swapGems()
+{
+	m_bRunningAction = true;
+	m_bTouchEnabled = false;
+	printf("src:%d,%d\t", m_pSrcGem->getRow(), m_pSrcGem->getCol());
+	printf("dst:%d,%d\n", m_pDestGem->getRow(), m_pDestGem->getCol());
+	if (m_pSrcGem == nullptr || m_pDestGem == nullptr) 
+	{
+		//TODO:
+		//m_movingVertical = true;
+		return;
+	}
+
+	Point posOfSrc = m_pSrcGem->getPosition();
+	Point posOfDest = m_pDestGem->getPosition();
+	float time = 0.2f;
+
+	// 1.swap in matrix
+	m_matrix[m_pSrcGem->getRow() * m_width + m_pSrcGem->getCol()] = m_pDestGem;
+	m_matrix[m_pDestGem->getRow() * m_width + m_pDestGem->getCol()] = m_pSrcGem;
+	int tmpRow = m_pSrcGem->getRow();
+	int tmpCol = m_pSrcGem->getCol();
+	m_pSrcGem->setRow(m_pDestGem->getRow());
+	m_pSrcGem->setCol(m_pDestGem->getCol());
+	m_pDestGem->setRow(tmpRow);
+	m_pDestGem->setCol(tmpCol);
+
+	// 2.check for remove able
+	std::list<Gemstone *> colChainListOfFirst;
+	getColChain(m_pSrcGem, colChainListOfFirst);
+
+	std::list<Gemstone *> rowChainListOfFirst;
+	getRowChain(m_pSrcGem, rowChainListOfFirst);
+
+	std::list<Gemstone *> colChainListOfSecond;
+	getColChain(m_pDestGem, colChainListOfSecond);
+
+	std::list<Gemstone *> rowChainListOfSecond;
+	getRowChain(m_pDestGem, rowChainListOfSecond);
+
+	if (colChainListOfFirst.size() >= 3
+		|| rowChainListOfFirst.size() >= 3
+		|| colChainListOfSecond.size() >= 3
+		|| rowChainListOfSecond.size() >= 3) 
+	{
+		// just swap
+		auto move = MoveTo::create(time, posOfDest);
+		move->setTag(Entity::ACTION_TAG);
+		m_pSrcGem->runAction(move);
+
+		move = MoveTo::create(time, posOfSrc);
+		move->setTag(Entity::ACTION_TAG);
+		m_pDestGem->runAction(move);
+		return;
+	}
+
+	// 3.no chain, swap back
+	m_matrix[m_pSrcGem->getRow() * m_width + m_pSrcGem->getCol()] = m_pDestGem;
+	m_matrix[m_pDestGem->getRow() * m_width + m_pDestGem->getCol()] = m_pSrcGem;
+	tmpRow = m_pSrcGem->getRow();
+	tmpCol = m_pSrcGem->getCol();
+	m_pSrcGem->setRow(m_pDestGem->getRow());
+	m_pSrcGem->setCol(m_pDestGem->getCol());
+	m_pDestGem->setRow(tmpRow);
+	m_pDestGem->setCol(tmpCol);
+
+	auto seq = Sequence::create(
+		MoveTo::create(time, posOfDest),
+		MoveTo::create(time, posOfSrc),
+		NULL);
+	seq->setTag(Entity::ACTION_TAG);
+	m_pSrcGem->runAction(seq);
+
+	seq = Sequence::create(
+		MoveTo::create(time, posOfSrc),
+		MoveTo::create(time, posOfDest),
+		NULL);
+	seq->setTag(Entity::ACTION_TAG);
+	m_pDestGem->runAction(seq);
 }

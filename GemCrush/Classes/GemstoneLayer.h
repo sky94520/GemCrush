@@ -30,6 +30,13 @@ private:
 	void removeGems(std::list<Gemstone*> &list);
 	//空缺处的宝石下落，生成新的宝石
 	void fillVacancies();
+	//根据位置获取点击的宝石
+	Gemstone* getGemOFPoint(const Point& pos);
+	//触碰事件
+	bool onTouchBegan(Touch* touch, SDL_Event* event);
+	void onTouchMoved(Touch* touch, SDL_Event* event);
+	//交换宝石
+	void swapGems();
 private:
 	//矩阵起始点左上角
 	float m_matrixLeftTopX;
@@ -43,5 +50,9 @@ private:
 	Rect m_visibleRect;
 	//标识当前是否有动作
 	bool m_bRunningAction;
+	//是否可触碰
+	bool m_bTouchEnabled;
+	Gemstone* m_pSrcGem;
+	Gemstone* m_pDestGem;
 };
 #endif
