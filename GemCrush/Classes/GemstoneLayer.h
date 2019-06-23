@@ -17,9 +17,19 @@ public:
 	bool init(const Rect& rect);
 
 	void initMatrix();
+	void update(float dt);
 private:
-	Gemstone* generateGemstone(unsigned row, unsigned col);
+	//生成
+	void addGemstone(unsigned row, unsigned col);
 	Point getPositionOfGemstone(unsigned row, unsigned col);
+	//更新宝石
+	void updateGems();
+	void getColChain(Gemstone *stone, std::list<Gemstone*> &chainList);
+	void getRowChain(Gemstone *stone, std::list<Gemstone*> &chainList);
+	//移除宝石
+	void removeGems(std::list<Gemstone*> &list);
+	//空缺处的宝石下落，生成新的宝石
+	void fillVacancies();
 private:
 	//矩阵起始点左上角
 	float m_matrixLeftTopX;
@@ -31,5 +41,7 @@ private:
 	Gemstone** m_matrix;
 	//可视包围盒
 	Rect m_visibleRect;
+	//标识当前是否有动作
+	bool m_bRunningAction;
 };
 #endif
