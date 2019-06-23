@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with TexturePacker http://texturepacker.com-->
+<!-- $TexturePacker:SmartUpdate:4e08c67db53ce231133bf108d6dd5542$ -->
+<!--Format:
+n  => name of the sprite
+x  => sprite x pos in texture
+y  => sprite y pos in texture
+w  => sprite width (may be trimmed)
+h  => sprite height (may be trimmed)
+oX => sprite's x-corner offset (only available if trimmed)
+oY => sprite's y-corner offset (only available if trimmed)
+oW => sprite's original width (only available if trimmed)
+oH => sprite's original height (only available if trimmed)
+r => 'y' only set if sprite is rotated
+-->
+<TextureAtlas imagePath="gemres.png" width="256" height="512">
+    <sprite n="circle.png" x="2" y="2" w="120" h="120"/>
+    <sprite n="star00.png" x="236" y="122" w="8" h="8" oX="27" oY="28" oW="64" oH="64"/>
+    <sprite n="star01.png" x="214" y="108" w="20" h="16" oX="22" oY="23" oW="64" oH="64"/>
+    <sprite n="star02.png" x="216" y="46" w="34" h="30" oX="15" oY="18" oW="64" oH="64"/>
+    <sprite n="star03.png" x="216" y="2" w="38" h="42" oX="11" oY="11" oW="64" oH="64"/>
+    <sprite n="star04.png" x="236" y="108" w="16" h="12" oX="33" oY="19" oW="64" oH="64" r="y"/>
+    <sprite n="star05.png" x="216" y="78" w="32" h="28" oX="17" oY="13" oW="64" oH="64"/>
+    <sprite n="star06.png" x="182" y="228" w="44" h="42" oX="15" oY="9" oW="64" oH="64" r="y"/>
+    <sprite n="star07.png" x="182" y="176" w="52" h="50" oX="8" oY="6" oW="64" oH="64"/>
+    <sprite n="sushi_1n.png" x="2" y="210" w="88" h="84" oX="0" oY="2" oW="90" oH="90"/>
+    <sprite n="sushi_2n.png" x="92" y="262" w="88" h="78" oX="1" oY="6" oW="90" oH="90"/>
+    <sprite n="sushi_3n.png" x="92" y="176" w="88" h="84" oX="1" oY="2" oW="90" oH="90"/>
+    <sprite n="sushi_4n.png" x="124" y="2" w="90" h="86" oX="0" oY="2" oW="90" oH="90"/>
+    <sprite n="sushi_5n.png" x="2" y="124" w="88" h="84" oX="1" oY="2" oW="90" oH="90"/>
+    <sprite n="sushi_6n.png" x="124" y="90" w="88" h="84" oX="0" oY="2" oW="90" oH="90"/>
+</TextureAtlas>
