@@ -40,6 +40,8 @@ private:
 	void onTouchMoved(Touch* touch, SDL_Event* event);
 	//交换宝石,尝试消除，消除失败则撤销
 	void swapGems();
+	//结束动画
+	void endActionCallback(EventCustom* eventCustom);
 private:
 	//矩阵起始点左上角
 	float m_matrixLeftTopX;
@@ -51,8 +53,8 @@ private:
 	Gemstone** m_matrix;
 	//可视包围盒
 	Rect m_visibleRect;
-	//标识当前是否有动作
-	bool m_bRunningAction;
+	//当前运行着的宝石
+	int m_nRunningAction;
 	//是否可触碰
 	bool m_bTouchEnabled;
 	//点击的宝石

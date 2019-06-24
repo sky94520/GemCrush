@@ -10,7 +10,7 @@ GemstoneLayer::GemstoneLayer()
 	,m_width(0)
 	,m_height(0)
 	,m_matrix(nullptr)
-	,m_bRunningAction(true)
+	,m_nRunningAction(0)
 	,m_bTouchEnabled(false)
 	,m_pSrcGem(nullptr)
 	,m_pDestGem(nullptr)
@@ -65,6 +65,9 @@ bool GemstoneLayer::init(const Rect& rect)
 	listener->onTouchBegan = SDL_CALLBACK_2(GemstoneLayer::onTouchBegan, this);
 	listener->onTouchMoved = SDL_CALLBACK_2(GemstoneLayer::onTouchMoved, this);
 	_eventDispatcher->addEventListener(listener, this);
+	//监听宝石动作结束回调函数
+	_eventDispatcher->addEventCustomListener(Gemstone::END_ACTION, 
+		SDL_CALLBACK_1(GemstoneLayer::endActionCallback, this), this);
 
 	this->scheduleUpdate();
 
@@ -88,25 +91,8 @@ void GemstoneLayer::initMatrix()
 
 void GemstoneLayer::update(float)
 {
-	// 检测游戏场景中是否有Actions
-	if (m_bRunningAction) 
-	{
-		// 每帧检测一次
-		m_bRunningAction = false;
-		//依次检测每个寿司，看它们是否正在执行某个Action
-		for (unsigned i = 0; i < m_height * m_width; i++) {
-			Gemstone *stone = m_matrix[i];
-			//如果stone正在执行Action，那m_bRunningAction就为真
-			if (stone && stone->isRunningAction()) 
-			{
-				m_bRunningAction = true;
-				break;
-			}
-		}
-	}
-	m_bTouchEnabled = !m_bRunningAction;
 	//当没有实体执行Action时，检测和删除满足消除条件的实体
-	if (!m_bRunningAction) 
+	if (m_nRunningAction == 0) 
 	{
 		this->updateGems();
 	}
@@ -125,10 +111,10 @@ void GemstoneLayer::addGemstone(unsigned row, unsigned col)
 	Point startPosition = Point(endPosition.x, endPosition.y - m_visibleRect.size.height / 2);
 	stone->setPosition(startPosition);
 
-	float speed = (endPosition.y - startPosition.y) / 700.f;
-	MoveTo* move = MoveTo::create(speed, endPosition);
-	move->setTag(Entity::ACTION_TAG);
-	stone->runAction(move);
+	float duration = (endPosition.y - startPosition.y) / 700.f;
+	//运行平移动作
+	stone->moveTo(duration, endPosition);
+	m_nRunningAction += 1;
 
 	//添加
 	this->addChild(stone);
@@ -246,18 +232,20 @@ void GemstoneLayer::getRowChain(Gemstone *stone, std::list<Gemstone*> &chainList
 
 void GemstoneLayer::removeGems(std::list<Gemstone*> &list)
 {
-	m_bRunningAction = true;
-
 	std::list<Gemstone*>::iterator itList;
+	int number = 0;
 	//依次取出sushiList的值
 	for (itList = list.begin(); itList != list.end(); itList++)
 	{
-		Gemstone *stone = *itList;
+		Gemstone* stone = *itList;
 		// 从m_matrix中移除sushi
 		m_matrix[stone->getRow() * m_width + stone->getCol()] = nullptr;
 		//爆炸后移除自己
 		stone->explode();
+		number++;
 	}
+	//增加当前运行动作的宝石数目
+	m_nRunningAction += number;
 	// 填补空位，它根据NULL的m_matrix值计算填补位置
 	this->fillVacancies();
 }
@@ -292,12 +280,9 @@ void GemstoneLayer::fillVacancies()
 					// 移动到新位置
 					Point startPosition = stone->getPosition();
 					Point endPosition = this->getPositionOfGemstone(newRow, col);
-					float speed = (endPosition.y - startPosition.y) / 600.f;
-					//TODO:停止之前的动作 不明白为什么要停止之前的动作
-					//stone->stopAllActions();
-					MoveTo* moveTo = MoveTo::create(speed, endPosition);
-					moveTo->setTag(Entity::ACTION_TAG);
-					stone->runAction(moveTo);
+					float duration = (endPosition.y - startPosition.y) / 600.f;
+					stone->moveTo(duration, endPosition);
+					m_nRunningAction++;
 					// 设置寿司的新行
 					stone->setRow(newRow);
 				}
@@ -355,7 +340,7 @@ bool GemstoneLayer::onTouchBegan(Touch* touch, SDL_Event* event)
 void GemstoneLayer::onTouchMoved(Touch* touch, SDL_Event* event)
 {
 	//src == nullptr || 不可点击
-	if (m_pSrcGem == nullptr || !m_bTouchEnabled || m_bRunningAction)
+	if (m_pSrcGem == nullptr || !m_bTouchEnabled || m_nRunningAction != 0)
 	{
 		return;
 	}
@@ -393,7 +378,6 @@ void GemstoneLayer::onTouchMoved(Touch* touch, SDL_Event* event)
 
 void GemstoneLayer::swapGems()
 {
-	m_bRunningAction = true;
 	m_bTouchEnabled = false;
 	if (m_pSrcGem == nullptr || m_pDestGem == nullptr) 
 	{
@@ -434,13 +418,9 @@ void GemstoneLayer::swapGems()
 		|| rowChainListOfSecond.size() >= 3) 
 	{
 		// just swap
-		auto move = MoveTo::create(time, posOfDest);
-		move->setTag(Entity::ACTION_TAG);
-		m_pSrcGem->runAction(move);
-
-		move = MoveTo::create(time, posOfSrc);
-		move->setTag(Entity::ACTION_TAG);
-		m_pDestGem->runAction(move);
+		m_pSrcGem->moveTo(time, posOfDest);
+		m_pDestGem->moveTo(time, posOfSrc);
+		m_nRunningAction += 2;
 		return;
 	}
 
@@ -454,11 +434,21 @@ void GemstoneLayer::swapGems()
 	m_pDestGem->setRow(tmpRow);
 	m_pDestGem->setCol(tmpCol);
 
-	auto seq = Sequence::createWithTwoActions(MoveTo::create(time, posOfDest), MoveTo::create(time, posOfSrc));
-	seq->setTag(Entity::ACTION_TAG);
-	m_pSrcGem->runAction(seq);
+	m_pSrcGem->moveBack(time, posOfDest);
+	m_pDestGem->moveBack(time, posOfSrc);
+	m_nRunningAction += 2;
+}
 
-	seq = Sequence::createWithTwoActions(MoveTo::create(time, posOfSrc), MoveTo::create(time, posOfDest));
-	seq->setTag(Entity::ACTION_TAG);
-	m_pDestGem->runAction(seq);
+void GemstoneLayer::endActionCallback(EventCustom* ec)
+{
+	m_nRunningAction--;
+
+	if (m_nRunningAction == 0)
+	{
+		m_bTouchEnabled = true;
+	}
+	else if (m_nRunningAction < 0)
+	{
+		printf("error:m_nRunningAction must >= 0\n");
+	}
 }
