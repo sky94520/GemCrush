@@ -8,6 +8,8 @@
 class Gemstone : public Entity
 {
 public:
+	static const string END_ACTION;
+public:
 	Gemstone();
 	virtual ~Gemstone();
 	static Gemstone* create(unsigned row, unsigned col);
@@ -18,8 +20,10 @@ public:
 	bool equals(Gemstone* pStone) const;
 	//爆炸特效
 	void explode();
-	//是否在运行动作或者动画
-	bool isRunningAction();
+	//移动到指定位置
+	void moveTo(float duration, const Point& pos);
+	//回转移动
+	void moveBack(float duration, const Point& pos);
 
 	unsigned int getRow() const { return m_row; }
 	void setRow(unsigned row) { m_row = row; }
